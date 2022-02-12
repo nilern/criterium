@@ -22,9 +22,14 @@
   :set-version
   {:updates [{:path "README.md" :no-snapshot true}]}}
  :dev {:aliases {"impl-perf" ["with-profile" "+impl" " perforate" "--quick"]}
-       :plugins [[codox/codox.leiningen "0.6.4"]
+       :dependencies [[org.clojure/clojurescript "1.11.4"]]
+       :plugins [[lein-cljsbuild "1.1.8"]
+                 [codox/codox.leiningen "0.6.4"]
                  [lein-marginalia "0.7.1"]]
-       :global-vars {*warn-on-reflection* true}}
+       :global-vars {*warn-on-reflection* true}
+       :cljsbuild {:builds [{:source-paths ["src"]
+                             :compiler {:optimizations :none
+                                        :pretty-print true}}]}}}
  :impl {:perforate
         {:environments
          [{:name :array
