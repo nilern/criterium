@@ -49,10 +49,10 @@ benchmarking pitfalls.
 
 See http://hackage.haskell.org/package/criterion for a Haskell benchmarking
 library that applies many of the same statistical techniques."
-  (:use clojure.set
-         criterium.stats)
-  (:require criterium.well)
-  (:import (java.lang.management ManagementFactory)))
+  (:require [clojure.set :as set]
+            [criterium.stats :as stats]
+            criterium.well)
+  #?(:clj (:import (java.lang.management ManagementFactory))))
 
 (def ^{:dynamic true} *use-mxbean-for-times* nil)
 
@@ -597,10 +597,10 @@ sequence:
    http://en.wikipedia.org/wiki/Bootstrapping_(statistics)"
   [data statistic size alpha rng-factory]
   (progress "Bootstrapping ...")
-  (let [bca (bca-nonparametric data statistic size alpha rng-factory)]
+  (let [bca (stats/bca-nonparametric data statistic size alpha rng-factory)]
     (if (vector? bca)
-      (bca-to-estimate alpha bca)
-      (map (partial bca-to-estimate alpha) bca))))
+      (stats/bca-to-estimate alpha bca)
+      (map (partial stats/bca-to-estimate alpha) bca))))
 
 (defn bootstrap
   "Bootstrap a statistic. Statistic can produce multiple statistics as a vector
@@ -608,11 +608,11 @@ sequence:
    http://en.wikipedia.org/wiki/Bootstrapping_(statistics)"
   [data statistic size rng-factory]
   (progress "Bootstrapping ...")
-  (let [samples (bootstrap-sample data statistic size rng-factory)
+  (let [samples (stats/bootstrap-sample data statistic size rng-factory)
         transpose (fn [data] (apply map vector data))]
     (if (vector? (first samples))
-      (map bootstrap-estimate samples)
-      (bootstrap-estimate samples))))
+      (map stats/bootstrap-estimate samples)
+      (stats/bootstrap-estimate samples))))
 
 ;;; Outliers
 
@@ -687,7 +687,7 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
   [data]
   (progress "Finding outliers ...")
   (reduce (apply partial add-outlier
-                 (apply boxplot-outlier-thresholds
+                 (apply stats/boxplot-outlier-thresholds
                         ((juxt first last) (quartiles (sort data)))))
           (outlier-count 0 0 0 0)
           data))
@@ -730,7 +730,7 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
   [opts]
   (let [known-options #{:os :runtime :verbose}
         option-set (set opts)]
-    [(intersection known-options option-set)
+    [(set/intersection known-options option-set)
      (remove #(contains? known-options %1) opts)]))
 
 (defn add-default-options [options defaults]
@@ -754,32 +754,32 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
         stats (bootstrap-bca
                (map double (:samples times))
                (juxt
-                mean
-                variance
-                (partial quantile tail-quantile)
-                (partial quantile (- 1.0 tail-quantile)))
+                stats/mean
+                stats/variance
+                (partial stats/quantile tail-quantile)
+                (partial stats/quantile (- 1.0 tail-quantile)))
                (:bootstrap-size opts) [0.5 tail-quantile (- 1.0 tail-quantile)]
                criterium.well/well-rng-1024a)
         analysis (outlier-significance (first stats) (second stats)
                                        (:sample-count times))
         sqr (fn [x] (* x x))
-        m (mean (map double (:samples times)))
-        s (Math/sqrt (variance (map double (:samples times))))]
+        m (stats/mean (map double (:samples times)))
+        s (Math/sqrt (stats/variance (map double (:samples times))))]
     (merge times
            {:outliers outliers
-            :mean (scale-bootstrap-estimate
+            :mean (stats/scale-bootstrap-estimate
                    (first stats) (/ 1e-9 (:execution-count times)))
-            :sample-mean (scale-bootstrap-estimate
+            :sample-mean (stats/scale-bootstrap-estimate
                           [m [(- m (* 3 s)) (+ m (* 3 s))]]
                           (/ 1e-9 (:execution-count times)))
-            :variance (scale-bootstrap-estimate
+            :variance (stats/scale-bootstrap-estimate
                        (second stats) (sqr (/ 1e-9 (:execution-count times))))
-            :sample-variance (scale-bootstrap-estimate
+            :sample-variance (stats/scale-bootstrap-estimate
                               [ (sqr s) [0 0]]
                               (sqr (/ 1e-9 (:execution-count times))))
-            :lower-q (scale-bootstrap-estimate
+            :lower-q (stats/scale-bootstrap-estimate
                        (nth stats 2) (/ 1e-9 (:execution-count times)))
-            :upper-q (scale-bootstrap-estimate
+            :upper-q (stats/scale-bootstrap-estimate
                        (nth stats 3) (/ 1e-9 (:execution-count times)))
             :outlier-variance analysis
             :tail-quantile (:tail-quantile opts)
