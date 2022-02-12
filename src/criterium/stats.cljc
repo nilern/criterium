@@ -241,7 +241,7 @@ descending order (so the last element of coefficients is the constant term)."
       (let [r (if (< x 0.5) x (- 1.0 x))
             r (Math/sqrt (- (Math/log r)))]
         (if (<= r 5.0)
-          (let [r (- r (double 16/10))]
+          (let [r (- r 1.6)]
             (* (Math/signum (double (- x 0.5)))
                (/ (polynomial-value r c) (polynomial-value r d))))
           (let [r (- r 5.0)]
