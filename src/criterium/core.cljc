@@ -127,6 +127,8 @@ library that applies many of the same statistical techniques."
   (when *report-warn*
     (apply println "WARNING:" message)))
 
+
+#?(:clj (do
 ;;; Java Management interface
 (defprotocol StateChanged
   "Interrogation of differences in a state."
@@ -176,7 +178,9 @@ library that applies many of the same statistical techniques."
   []
   (let [bean (.. ManagementFactory getCompilationMXBean)]
     (. bean getName)))
+)) ; #?(:clj (do
 
+#?(:clj (do
 (defn os-details
   "Return the operating system details as a hash."
   []
@@ -210,7 +214,9 @@ library that applies many of the same statistical techniques."
   []
   (let [bean (.. ManagementFactory getRuntimeMXBean)]
     (. bean getSystemProperties)))
+)) ; #?(:clj (do
 
+#?(:clj (do
 ;;; OS Specific Code
 (defn clear-cache-mac []
   (.. Runtime getRuntime (exec "/usr/bin/purge") waitFor))
@@ -225,6 +231,7 @@ library that applies many of the same statistical techniques."
     #"Mac" (clear-cache-mac)
     :else (warn "don't know how to clear disk buffer cache for "
                 (.. System getProperties (getProperty "os.name")))))
+)) ; #?(:clj (do
 
 ;;; Time reporting
 (defmacro timestamp
@@ -390,8 +397,10 @@ class counts, change in compilation time and result of specified function."
   "Run expression for the given amount of time to enable JIT compilation."
   [warmup-period f]
   (progress "Warming up for JIT optimisations" warmup-period "...")
-  (let [cl-state (jvm-class-loader-state)
+  (let [#?@(:clj [
+        cl-state (jvm-class-loader-state)
         comp-state (jvm-compilation-state)
+        ]) ; #?@(:clj [
         t (max 1 (first (time-body (f))))
         _ (debug "  initial t" t)
         [t n] (if (< t 100000)           ; 100us
@@ -404,28 +413,33 @@ class counts, change in compilation time and result of specified function."
     (debug "  using execution-count" c)
     (loop [elapsed (long t)
            count (long n)
+           #?@(:clj [
            delta-free (long 0)
            old-cl-state cl-state
-           old-comp-state comp-state]
-      (let [new-cl-state (jvm-class-loader-state)
-            new-comp-state (jvm-compilation-state)]
+           old-comp-state comp-state])]
+      (let [#?@(:clj [
+            new-cl-state (jvm-class-loader-state)
+            new-comp-state (jvm-compilation-state)])]
+        #?@(:clj [
         (if (not= old-cl-state new-cl-state)
           (progress "  classes loaded before" count "iterations"))
         (if (not= old-comp-state new-comp-state)
-          (progress "  compilation occurred before" count "iterations"))
+          (progress "  compilation occurred before" count "iterations"))])
         (debug "  elapsed" elapsed " count" count)
-        (if (and (> delta-free 2) (> elapsed warmup-period))
+        (if (and #?(:clj (> delta-free 2)) (> elapsed warmup-period))
           [elapsed count
+           #?@(:clj [
            (state-delta new-cl-state cl-state)
-           (state-delta new-comp-state comp-state)]
+           (state-delta new-comp-state comp-state)])]
           (recur (+ elapsed (long (first (execute-expr c f))))
                  (+ count c)
+                 #?@(:clj [
                  (if (and (= old-cl-state new-cl-state)
                           (= old-comp-state new-comp-state))
                    (unchecked-inc delta-free)
                    (long 0))
                  new-cl-state
-                 new-comp-state))))))
+                 new-comp-state])))))))
 
 ;;; Execution parameters
 (defn estimate-execution-count
@@ -436,27 +450,31 @@ class counts, change in compilation time and result of specified function."
   (progress "Estimating execution count ...")
   (debug " estimated-fn-time" estimated-fn-time)
   (loop [n (max 1 (long (/ period (max 1 estimated-fn-time) 5)))
+         #?@(:clj [
          cl-state (jvm-class-loader-state)
-         comp-state (jvm-compilation-state)]
+         comp-state (jvm-compilation-state)])]
     (let [t (ffirst (collect-samples 1 n f gc-before-sample))
           ;; It is possible for small n and a fast expression to get
           ;; t=0 nsec back from collect-samples.  This is likely due
           ;; to how (System/nanoTime) quantizes the time on some
           ;; systems.
           t (max 1 t)
+          #?@(:clj [
           new-cl-state (jvm-class-loader-state)
-          new-comp-state (jvm-compilation-state)]
+          new-comp-state (jvm-compilation-state)])]
       (debug " ..." n)
+      #?(:clj
       (when (not= comp-state new-comp-state)
-        (warn "new compilations in execution estimation phase"))
+        (warn "new compilations in execution estimation phase")))
       (if (and (>= t period)
+               #?@(:clj [
                (= cl-state new-cl-state)
-               (= comp-state new-comp-state))
+               (= comp-state new-comp-state)]))
         n
         (recur (if (>= t period)
                  n
                  (min (* 2 n) (inc (long (* n (/ period t))))))
-               new-cl-state new-comp-state)))))
+               #?@(:clj [new-cl-state new-comp-state]))))))
 
 
 ;; benchmark
@@ -784,12 +802,12 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
                        (nth stats 3) (/ 1e-9 (:execution-count times)))
             :outlier-variance analysis
             :tail-quantile (:tail-quantile opts)
-            :os-details (os-details)
+            #?@(:clj [:os-details (os-details)])
             :options opts
-            :runtime-details (->
-                              (runtime-details)
-                              (update-in [:input-arguments] vec))})))
+            #?@(:clj [:runtime-details (-> (runtime-details)
+                                           (update-in [:input-arguments] vec))])})))
 
+#?(:clj
 (defn warn-on-suspicious-jvm-options
   "Warn if the JIT options are suspicious looking."
   []
@@ -801,7 +819,7 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
       (warn
        "JVM argument" (first arg) "is active,"
        "and may lead to unexpected results as JIT C2 compiler may not be active."
-       "See http://www.slideshare.net/CharlesNutter/javaone-2012-jvm-jit-for-dummies."))))
+       "See http://www.slideshare.net/CharlesNutter/javaone-2012-jvm-jit-for-dummies.")))))
 
 (defn benchmark*
   "Benchmark a function. This tries its best to eliminate sources of error.
@@ -810,8 +828,9 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
    longer running expressions."
   [f {:keys [samples warmup-jit-period target-execution-time gc-before-sample
              overhead supress-jvm-option-warnings] :as options}]
+  #?(:clj
   (when-not supress-jvm-option-warnings
-    (warn-on-suspicious-jvm-options))
+    (warn-on-suspicious-jvm-options)))
   (let [{:keys [samples warmup-jit-period target-execution-time
                 gc-before-sample overhead] :as opts}
         (merge *default-benchmark-opts*
