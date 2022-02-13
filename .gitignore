@@ -8,8 +8,11 @@ autodoc/**
 doc/**
 java.hprof.*
 .lein-deps-sum
+.lein-repl-history
 .lein-failures
 .ritz-exception-filters
 target
 checkouts
 .lsp
+.idea
+*.iml
