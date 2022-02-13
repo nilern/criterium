@@ -280,39 +280,46 @@ class counts, change in compilation time and result of specified function."
       (merge-with - comp-state# (jvm-compilation-state))
       ret#])))
 
+#?(:clj
+   (do
+     ;;; Memory reporting
+     (defn heap-used
+       "Report a (inconsistent) snapshot of the heap memory used."
+       []
+       (let [runtime (Runtime/getRuntime)]
+         (- (.totalMemory runtime) (.freeMemory runtime))))
 
-;;; Memory reporting
-(defn heap-used
-  "Report a (inconsistent) snapshot of the heap memory used."
-  []
-  (let [runtime (Runtime/getRuntime)]
-    (- (.totalMemory runtime) (.freeMemory runtime))))
-
-(defn memory
-  "Report a (inconsistent) snapshot of the memory situation."
-  []
-  (let [runtime (Runtime/getRuntime)]
-    [ (.freeMemory runtime) (.totalMemory runtime) (.maxMemory runtime)]))
+     (defn memory
+       "Report a (inconsistent) snapshot of the memory situation."
+       []
+       (let [runtime (Runtime/getRuntime)]
+         [(.freeMemory runtime) (.totalMemory runtime) (.maxMemory runtime)]))))
 
 ;;; Memory management
 (defn force-gc
   "Force garbage collection and finalisers so that execution time associated
    with this is not incurred later. Up to max-attempts are made.
 "
-  ([] (force-gc *max-gc-attempts*))
-  ([max-attempts]
-     (debug "Cleaning JVM allocations ...")
-     (loop [memory-used (heap-used)
-            attempts 0]
-       (System/runFinalization)
-       (System/gc)
-       (let [new-memory-used (heap-used)]
-         (if (and (or (pos? (.. ManagementFactory
-                                getMemoryMXBean
-                                getObjectPendingFinalizationCount))
-                      (> memory-used new-memory-used))
-                  (< attempts max-attempts))
-           (recur new-memory-used (inc attempts)))))))
+  #?@(:clj
+      [([] (force-gc *max-gc-attempts*))
+       ([max-attempts]
+        (debug "Cleaning JVM allocations ...")
+        (loop [memory-used (heap-used)
+               attempts 0]
+          (System/runFinalization)
+          (System/gc)
+          (let [new-memory-used (heap-used)]
+            (if (and (or (pos? (.. ManagementFactory
+                                   getMemoryMXBean
+                                   getObjectPendingFinalizationCount))
+                         (> memory-used new-memory-used))
+                     (< attempts max-attempts))
+              (recur new-memory-used (inc attempts))))))]
+      :cljs
+      [[]
+       (let [gc (this-as this (.-gc this))]
+         (when-not (undefined? gc)
+           (gc)))]))
 
 (defn final-gc
   "Time a final clean up of JVM memory. If this time is significant compared to
