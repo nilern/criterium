@@ -343,7 +343,8 @@ class counts, change in compilation time and result of specified function."
   (set-place [_ v] "Set mutable field to value.")
   (get-place [_] "Get mutable field value."))
 
-(deftype Unsynchronized [^{:unsynchronized-mutable true :tag Object} v]
+(deftype Unsynchronized [#?(:clj ^{:unsynchronized-mutable true :tag Object} v
+                            :cljs ^:mutable v)]
   MutablePlace
   (set-place [_ value] (set! v value))
   (get-place [_] v))
