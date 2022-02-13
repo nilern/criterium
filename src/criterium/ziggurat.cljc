@@ -42,7 +42,7 @@
          (inc i)
          (#?(:clj Math/exp, :cljs js/Math.exp) (* -0.5e0 (aget s-adzigx i) (aget s-adzigx i))))))
 
-    (for [#^Integer i (range c)]
+    (for [i (range c)]
       (let [j (int i)]
         (aset s-adzigr j (/ (aget s-adzigx (inc j)) (aget s-adzigx j)))))
     [s-adzigr s-adzigx r (dec c)]))
