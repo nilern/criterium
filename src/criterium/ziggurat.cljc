@@ -28,18 +28,19 @@
         v (double v)
         #^doubles s-adzigx (double-array (inc c))
         #^doubles s-adzigr (double-array c)
-        f (Math/exp (* -0.5e0 r r))]
+        f (#?(:clj Math/exp, :cljs js/Math.exp) (* -0.5e0 r r))]
     (aset s-adzigx 0 (/ v f)) ;; [0] is bottom block: V / f(R)
     (aset s-adzigx 1 r)
     (aset s-adzigx c (double 0.0))
     (loop [i (int 2)
            f f]
       (aset s-adzigx i
-            (Math/sqrt (* -2e0 (Math/log (+ (/ v (aget s-adzigx (dec i))) f)))))
+            (#?(:clj Math/sqrt, :cljs js/Math.sqrt)
+             (* -2e0 (#?(:clj Math/log, :cljs js/Math.log) (+ (/ v (aget s-adzigx (dec i))) f)))))
       (when (< i c)
         (recur
          (inc i)
-         (Math/exp (* -0.5e0 (aget s-adzigx i) (aget s-adzigx i))))))
+         (#?(:clj Math/exp, :cljs js/Math.exp) (* -0.5e0 (aget s-adzigx i) (aget s-adzigx i))))))
 
     (for [#^Integer i (range c)]
       (let [j (int i)]
@@ -64,8 +65,8 @@ See:
      (letfn [(random-normal-tail
                [min negative rng-seq]
                (loop [rng-seq rng-seq]
-                 (let [x (/ (Math/log (first rng-seq)) min)
-                       y (Math/log (first (next rng-seq)))]
+                 (let [x (/ (#?(:clj Math/log, :cljs js/Math.log) (first rng-seq)) min)
+                       y (#?(:clj Math/log, :cljs js/Math.log) (first (next rng-seq)))]
                    (if (>= (* -2e0 y) (* x x))
                      (if negative
                        [(- x min) (drop 2 rng-seq)]
@@ -79,7 +80,7 @@ See:
                          (int (* Integer/MAX_VALUE (first (drop 1 rng-seq))))
                          mask)]
                  ;; first try the rectangular boxes
-                 (if (< (Math/abs u) (nth s-adzigr i))
+                 (if (< (#?(:clj Math/abs, :cljs js/Math.abs) u) (nth s-adzigr i))
                    [(* u (nth s-adzigx i)) (drop 2 rng-seq)]
 
                    ;; bottom box: sample from the tail
@@ -88,12 +89,12 @@ See:
 
                      ;; is this a sample from the wedges?
                      (let [x (* u (nth s-adzigx i))
-                           f0 (Math/exp
+                           f0 (#?(:clj Math/exp, :cljs js/Math.exp)
                                (* -0.5e0
-                                  (- (Math/pow (nth s-adzigx i) 2) (sqr x))))
-                           f1 (Math/exp
+                                  (- (#?(:clj Math/pow, :cljs js/Math.pow) (nth s-adzigx i) 2) (sqr x))))
+                           f1 (#?(:clj Math/exp, :cljs js/Math.exp)
                                (* -0.5e0
-                                  (- (Math/pow (nth s-adzigx (inc i)) 2)
+                                  (- (#?(:clj Math/pow, :cljs js/Math.pow) (nth s-adzigx (inc i)) 2)
                                      (sqr x))))]
                        (if  (< (+ f1 (* (first (drop 2 rng-seq) ) (- f0 f1)))
                                1.0)
