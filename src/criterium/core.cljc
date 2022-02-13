@@ -236,14 +236,16 @@ library that applies many of the same statistical techniques."
 ;;; Time reporting
 (defmacro timestamp
   "Obtain a timestamp"
-  [] `(System/nanoTime))
+  []
+  #?(:clj `(System/nanoTime)
+     :cljs `(js/Math.round (* 1e6 (.now js/performance)))))
 
 (defn timestamp-2
   "Obtain a timestamp, possibly using MXBean."
   []
   (if *use-mxbean-for-times*
     (.. ManagementFactory getThreadMXBean getCurrentThreadCpuTime)
-    (System/nanoTime)))
+    (timestamp)))
 
 ;;; Execution timing
 (defmacro time-body
