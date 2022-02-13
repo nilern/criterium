@@ -13,6 +13,8 @@
 
 (ns criterium.well)
 
+(def ^:const +max-int+ 2147483647)
+
 ;;; Macros to help convert unsigned algorithm to our implementation with signed
 ;;; integers.
 ;;; unsign is used to convert the [0.5,-0.5] range back onto [1,0]
@@ -23,7 +25,7 @@
      (if (neg? n#)
        (bit-shift-left ~a (- n#))
        (bit-and
-        (bit-shift-right Integer/MAX_VALUE (dec n#))
+        (bit-shift-right +max-int+ (dec n#))
         (bit-shift-right ~a n#)))))
 
 (defmacro unsign
@@ -33,7 +35,7 @@
   `(let [v# ~x]
      (if (neg? v#) (+ 1 v#) v#)))
 
-(def int-max (bit-or (bit-shift-left Integer/MAX_VALUE 1) 1))
+(def int-max (bit-or (bit-shift-left +max-int+ 1) 1))
 
 (defmacro limit-bits [x]
   `(bit-and int-max ~x))
@@ -54,7 +56,7 @@ See: Improved Long-Period Generators Based on Linear Recurrences Modulo 2
 F. Panneton, P. L'Ecuyer and M. Matsumoto
 http://www.iro.umontreal.ca/~panneton/WELLRNG.html"
   ([] (well-rng-1024a
-       (long-array 32 (repeatedly 32 #(rand-int Integer/MAX_VALUE)))
+       (long-array 32 (repeatedly 32 #(rand-int +max-int+)))
        (rand-int 32)))
   ([^longs state ^long index]
      {:pre [(<= 0 index 32)]}

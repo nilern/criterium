@@ -77,7 +77,7 @@ See:
                (let [r  (first rng-seq)
                      u  (double (- (* 2e0 r) 1e0))
                      i  (bit-and
-                         (int (* Integer/MAX_VALUE (first (drop 1 rng-seq))))
+                         (int (* criterium.well/+max-int+ (first (drop 1 rng-seq))))
                          mask)]
                  ;; first try the rectangular boxes
                  (if (< (#?(:clj Math/abs, :cljs js/Math.abs) u) (nth s-adzigr i))
