@@ -55,7 +55,7 @@ library that applies many of the same statistical techniques."
             criterium.well)
   #?(:clj (:import (java.lang.management ManagementFactory))))
 
-(def ^{:dynamic true} *use-mxbean-for-times* nil)
+#?(:clj (def ^{:dynamic true} *use-mxbean-for-times* nil))
 
 (def ^{:doc "Fraction of excution time allowed for final cleanup before a
              warning is issued."
@@ -243,9 +243,10 @@ library that applies many of the same statistical techniques."
 (defn timestamp-2
   "Obtain a timestamp, possibly using MXBean."
   []
-  (if *use-mxbean-for-times*
-    (.. ManagementFactory getThreadMXBean getCurrentThreadCpuTime)
-    (timestamp)))
+  #?(:clj (if *use-mxbean-for-times*
+            (.. ManagementFactory getThreadMXBean getCurrentThreadCpuTime)
+            (timestamp))
+     :cljs (timestamp)))
 
 ;;; Execution timing
 (defmacro time-body
