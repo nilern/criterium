@@ -707,7 +707,7 @@ See http://www.ellipticgroup.com/misc/article_supplement.pdf, p17."
   (progress "Finding outliers ...")
   (reduce (apply partial add-outlier
                  (apply stats/boxplot-outlier-thresholds
-                        ((juxt first last) (quartiles (sort data)))))
+                        ((juxt first last) (stats/quartiles (sort data)))))
           (outlier-count 0 0 0 0)
           data))
 
